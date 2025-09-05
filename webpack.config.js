@@ -10,7 +10,7 @@ try {
     dhisConfig = require("./d2auth.json");  
     dhisConfig.authorization = `Basic ${Buffer.from(`${dhisConfig.username}:${dhisConfig.password}`).toString("base64")}`;
 } catch (e) {
-    console.warn("\nWARNING! Failed to load DHIS config:", e.message);
+    console.warn("WARNING! Failed to load DHIS config:", e.message);
     dhisConfig = {
         baseUrl: "http://localhost:8080/dhis",
         authorization: "Basic YWRtaW46ZGlzdHJpY3Q=", // admin:district

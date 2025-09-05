@@ -2,12 +2,12 @@
 
 //JS
 import { d2Get, d2Patch } from "./js/d2api.js";
+import { loadLegacyHeaderBarIfNeeded } from "./js/check-header-bar.js";
 import $ from "jquery";
 import M from "materialize-css";
 
 //CSS
 import "./css/style.css";
-import "./css/header.css";
 import "materialize-css/dist/css/materialize.min.css";
 
 let mergedData = {};
@@ -651,3 +651,5 @@ window.updateFixButton = updateFixButton;
 window.checkAll = checkAll;
 window.fixAll = fixAll;
 window.selectAll = selectAll;
+
+loadLegacyHeaderBarIfNeeded();
