@@ -1,5 +1,6 @@
 {
     "baseUrl": "http://localhost:8080/dhis",
     "username": "admin",
-    "password": "district"
+    "password": "district",
+    "port": "8081"
 }
