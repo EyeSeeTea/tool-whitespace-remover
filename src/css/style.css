@@ -1,6 +1,7 @@
 /* Whitespace highlight rules */
 .whitespace-highlight {
     background-color: #ffeb3b; /* Material yellow 300 */
+    white-space: pre;
 }
 
 .status-ready {
