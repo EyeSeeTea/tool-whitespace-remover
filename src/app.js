@@ -11,6 +11,12 @@ import "./css/header.css";
 import "materialize-css/dist/css/materialize.min.css";
 
 let mergedData = {};
+let selectedFields = {
+    name: true,
+    shortName: true,
+    code: true,
+    description: true
+};
 
 // Function to highlight leading, trailing, and double spaces
 function highlightSpaces(string) {
@@ -27,6 +33,59 @@ function highlightSpaces(string) {
 // Function to quote a string
 function quoteString(string) {
     return string ? `"${string}"` : "";
+}
+
+
+function createFieldSelector() {
+    if ($(".field-selector").length > 0) {
+        updateFieldSelectorUI();
+        return;
+    }
+    const $fieldSelector = $(`
+        <div class="field-selector" style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+            <h6>Select Fields to Process:</h6>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <label>
+                    <input type="checkbox" id="field-name" ${selectedFields.name ? "checked" : ""} />
+                    <span>Name</span>
+                </label>
+                <label>
+                    <input type="checkbox" id="field-shortName" ${selectedFields.shortName ? "checked" : ""} />
+                    <span>Short Name</span>
+                </label>
+                <label>
+                    <input type="checkbox" id="field-code" ${selectedFields.code ? "checked" : ""} />
+                    <span>Code (WARNING: can break metadata relations)</span>
+                </label>
+                <label>
+                    <input type="checkbox" id="field-description" ${selectedFields.description ? "checked" : ""} />
+                    <span>Description</span>
+                </label>
+            </div>
+        </div>
+    `);
+
+    $fieldSelector.find("input[type=\"checkbox\"]").on("change", function() {
+        updateFieldSelection();
+    });
+    
+    $("#table-tabs").before($fieldSelector);
+}
+
+function updateFieldSelectorUI() {
+    $("#field-name").prop("checked", selectedFields.name);
+    $("#field-shortName").prop("checked", selectedFields.shortName);
+    $("#field-code").prop("checked", selectedFields.code);
+    $("#field-description").prop("checked", selectedFields.description);
+}
+
+function updateFieldSelection() {
+    selectedFields.name = $("#field-name").is(":checked");
+    selectedFields.shortName = $("#field-shortName").is(":checked");
+    selectedFields.code = $("#field-code").is(":checked");
+    selectedFields.description = $("#field-description").is(":checked");
+    
+    M.toast({html: "Field selection updated", classes: "blue"});
 }
 
 
@@ -77,6 +136,7 @@ async function fetchAndRenderMetadata() {
 
         renderTables(mergedData);
         createTabs(Object.keys(mergedData));
+        createFieldSelector();
 
         $("#loading-indicator").fadeOut(); // Hide loading indicator
     } catch (err) {
@@ -157,6 +217,33 @@ function createTabs(types) {
     setTimeout(() => M.Tabs.init($(".tabs")), 100); // Allow elements to be added before initialization
 }
 
+function getFieldValuesFromRow(row) {
+    const fieldValues = {};
+    
+    const id = row.data("id");
+    const type = row.data("type");
+    const objectData = mergedData[type]?.find(obj => obj.id === id);
+    
+    if (!objectData) {
+        return fieldValues;
+    }
+    
+    if (selectedFields.name && objectData.name) {
+        fieldValues.name = cleanString(objectData.name);
+    }
+    if (selectedFields.shortName && objectData.shortName) {
+        fieldValues.shortName = cleanString(objectData.shortName);
+    }
+    if (selectedFields.code && objectData.code) {
+        fieldValues.code = cleanString(objectData.code);
+    }
+    if (selectedFields.description && objectData.description) {
+        fieldValues.description = cleanString(objectData.description);
+    }
+    
+    return fieldValues;
+}
+
 
 // Check for conflicts in metadata
 async function checkConflicts(type, id) {
@@ -164,54 +251,22 @@ async function checkConflicts(type, id) {
     var endpoint = type;
     var conflictsSummary = [];
 
-    /* eslint-disable no-useless-escape */
-    var name = row.find("td:nth-child(3)").text()
-        .replace(/^\"/, "") // Remove leading quote
-        .replace(/\"$/, "") // Remove trailing quote
-        .replace(/\s{2,}/g, " ") // Replace double space with single space
-        .trim(); // Remove leading and trailing spaces
-
-    var shortName = row.find("td:nth-child(4)").text()
-        .replace(/^\"/, "") // Remove leading quote
-        .replace(/\"$/, "") // Remove trailing quote
-        .replace(/\s{2,}/g, " ") // Replace double space with single space
-        .trim(); // Remove leading and trailing spaces
-
-    var code = row.find("td:nth-child(5)").text()
-        .replace(/^\"/, "") // Remove leading quote
-        .replace(/\"$/, "") // Remove trailing quote
-        .replace(/\s{2,}/g, " ") // Replace double space with single space
-        .trim(); // Remove leading and trailing spaces
-    /* eslint-enable no-useless-escape */
-
-    var encodedName = encodeURIComponent(name);
-    var encodedShortName = encodeURIComponent(shortName);
-    var encodedCode = encodeURIComponent(code);
+    var fieldValues = getFieldValuesFromRow(row);
 
     var requests = [];
     var conflicts = {};
 
-    if (name) {
-        requests.push(
-            d2Get(`/api/${endpoint}.json?filter=name:eq:${encodedName}&filter=id:!eq:${id}&fields=id,name`).then(data => {
-                if (data[endpoint] && data[endpoint].length > 0) conflicts["name"] = data[endpoint];
-            }).catch(err => console.error(err.message))
-        );
-    }
-    if (shortName) {
-        requests.push(
-            d2Get(`/api/${endpoint}.json?filter=shortName:eq:${encodedShortName}&filter=id:!eq:${id}&fields=id,shortName`).then(data => {
-                if (data[endpoint] && data[endpoint].length > 0) conflicts["shortName"] = data[endpoint];
-            }).catch(err => console.error(err.message))
-        );
-    }
-    if (code) {
-        requests.push(
-            d2Get(`/api/${endpoint}.json?filter=code:eq:${encodedCode}&filter=id:!eq:${id}&fields=id,code`).then(data => {
-                if (data[endpoint] && data[endpoint].length > 0) conflicts["code"] = data[endpoint];
-            }).catch(err => console.error(err.message))
-        );
-    }
+    Object.keys(fieldValues).forEach(function(field) {
+        var value = fieldValues[field];
+        if (value) {
+            var encodedValue = encodeURIComponent(value);
+            requests.push(
+                d2Get(`/api/${endpoint}.json?filter=${field}:eq:${encodedValue}&filter=id:!eq:${id}&fields=id,${field}`).then(data => {
+                    if (data[endpoint] && data[endpoint].length > 0) conflicts[field] = data[endpoint];
+                }).catch(err => console.error(err.message))
+            );
+        }
+    });
 
     await Promise.all(requests);
 
@@ -219,16 +274,14 @@ async function checkConflicts(type, id) {
         row.find(".status-cell").text("Conflict").addClass("status-conflict").removeClass("status-ready status-error");
         row.find(".row-checkbox").prop("checked", false);
         for (var field in conflicts) {
-            if (field !== "id" && field !== "objectName") {
-                conflicts[field].forEach(conflict => {
-                    conflictsSummary.push({
-                        objectName: name,
-                        id,
-                        property: field.charAt(0).toUpperCase() + field.slice(1),
-                        conflictingObjectId: conflict.id
-                    });
+            conflicts[field].forEach(conflict => {
+                conflictsSummary.push({
+                    objectName: fieldValues.name || fieldValues.shortName || id,
+                    id,
+                    property: field.charAt(0).toUpperCase() + field.slice(1),
+                    conflictingObjectId: conflict.id
                 });
-            }
+            });
         }
         showConflictSummaryModal(conflictsSummary, 0, conflictsSummary.length);
     } else {
@@ -249,19 +302,53 @@ async function fixObject(type, id) {
     var objectData;
 
     try {
-        // Fetch object from mergedData
         objectData = mergedData[type].find(obj => obj.id === id);
-
         const operations = [];
         
-        if (needsCleaning(objectData.name)) operations.push({ op: "add", path: "/name", value: cleanString(objectData.name) });
-        if (needsCleaning(objectData.shortName)) operations.push({ op: "add", path: "/shortName", value: cleanString(objectData.shortName) });
-        if (needsCleaning(objectData.code)) operations.push({ op: "add", path: "/code", value: cleanString(objectData.code) });
-        if (needsCleaning(objectData.description)) operations.push({ op: "add", path: "/description", value: cleanString(objectData.description) });
+        if (selectedFields.name && needsCleaning(objectData.name)) {
+            operations.push({ op: "add", path: "/name", value: cleanString(objectData.name) });
+        }
+        if (selectedFields.shortName && needsCleaning(objectData.shortName)) {
+            operations.push({ op: "add", path: "/shortName", value: cleanString(objectData.shortName) });
+        }
+        if (selectedFields.code && needsCleaning(objectData.code)) {
+            operations.push({ op: "add", path: "/code", value: cleanString(objectData.code) });
+        }
+        if (selectedFields.description && needsCleaning(objectData.description)) {
+            operations.push({ op: "add", path: "/description", value: cleanString(objectData.description) });
+        }
         
-        await d2Patch(`/api/${type}/${id}`, operations);
+        if (operations.length > 0) {
+            await d2Patch(`/api/${type}/${id}`, operations);
+        }
 
-        row.remove();
+        if (selectedFields.name && objectData.name) {
+            objectData.name = cleanString(objectData.name);
+        }
+        if (selectedFields.shortName && objectData.shortName) {
+            objectData.shortName = cleanString(objectData.shortName);
+        }
+        if (selectedFields.code && objectData.code) {
+            objectData.code = cleanString(objectData.code);
+        }
+        if (selectedFields.description && objectData.description) {
+            objectData.description = cleanString(objectData.description);
+        }
+
+        var hasWhitespaceIssues = needsCleaning(objectData.name) || 
+                                 needsCleaning(objectData.shortName) || 
+                                 needsCleaning(objectData.code) || 
+                                 needsCleaning(objectData.description);
+
+        if (!hasWhitespaceIssues) {
+            row.remove();
+        } else {
+            updateRowDisplay(row, objectData);
+            row.find(".status-cell").text("Partially Fixed").addClass("status-ready").removeClass("status-conflict status-error");
+            row.find(".fix-button").prop("disabled", true);
+            row.find(".row-checkbox").prop("checked", false);
+        }
+
         updateFixAllButton(type);
         checkRemainingRows(type);
 
@@ -276,9 +363,6 @@ async function fixObject(type, id) {
         showImportResultsModal(`Update of ${objectData.name} failed.`, importErrors);
     }
 }
-
-
-
 
 // Show conflict summary modal
 function showConflictSummaryModal(conflictsSummary, noConflictCount, conflictCount) {
@@ -395,65 +479,42 @@ async function checkConflictsSummary(type, id, conflictsSummary, $selectedRows) 
     var row = $(`tr[data-id='${id}']`);
     var endpoint = type;
 
-    var name = row.find("td:nth-child(3)").text().replace(/^"/, "").replace(/"$/, "").replace(/\s{2,}/g, " ").trim();
-    var shortName = row.find("td:nth-child(4)").text().replace(/^"/, "").replace(/"$/, "").replace(/\s{2,}/g, " ").trim();
-    var code = row.find("td:nth-child(5)").text().replace(/^"/, "").replace(/"$/, "").replace(/\s{2,}/g, " ").trim();
-
-    var encodedName = encodeURIComponent(name);
-    var encodedShortName = encodeURIComponent(shortName);
-    var encodedCode = encodeURIComponent(code);
+    var fieldValues = getFieldValuesFromRow(row);
 
     var requests = [];
-    var conflicts = { id, objectName: name };
+    var conflicts = { id, objectName: fieldValues.name || fieldValues.shortName || id };
 
-    if (type !== "organisationUnits" && name) {
-        requests.push(
-            d2Get(`/api/${endpoint}.json?filter=name:eq:${encodedName}&filter=id:!eq:${id}&fields=id,name`).then(data => {
-                if (data[endpoint] && data[endpoint].length > 0) {
-                    conflicts["name"] = data[endpoint].map(item => ({ conflictingObjectId: item.id, property: "Name" }));
-                }
-            })
-        );
-    }
-
-    if (type !== "organisationUnits" && shortName) {
-        requests.push(
-            d2Get(`/api/${endpoint}.json?filter=shortName:eq:${encodedShortName}&filter=id:!eq:${id}&fields=id,shortName`).then(data => {
-                if (data[endpoint] && data[endpoint].length > 0) {
-                    conflicts["shortName"] = data[endpoint].map(item => ({ conflictingObjectId: item.id, property: "Short Name" }));
-                }
-            })
-        );
-    }
-
-    if (code) {
-        requests.push(
-            d2Get(`/api/${endpoint}.json?filter=code:eq:${encodedCode}&filter=id:!eq:${id}&fields=id,code`).then(data => {
-                if (data[endpoint] && data[endpoint].length > 0) {
-                    conflicts["code"] = data[endpoint].map(item => ({ conflictingObjectId: item.id, property: "Code" }));
-                }
-            })
-        );
-    }
+    Object.keys(fieldValues).forEach(function(field) {
+        var value = fieldValues[field];
+        if (value && type !== "organisationUnits") {
+            var encodedValue = encodeURIComponent(value);
+            requests.push(
+                d2Get(`/api/${endpoint}.json?filter=${field}:eq:${encodedValue}&filter=id:!eq:${id}&fields=id,${field}`).then(data => {
+                    if (data[endpoint] && data[endpoint].length > 0) {
+                        conflicts[field] = data[endpoint].map(item => ({ 
+                            conflictingObjectId: item.id, 
+                            property: field.charAt(0).toUpperCase() + field.slice(1)
+                        }));
+                    }
+                }).catch(err => console.error(err.message))
+            );
+        }
+    });
 
     $selectedRows.each(function () {
         if ($(this).data("id") !== id) {
-            var otherName = $(this).find("td:nth-child(3)").text().replace(/^"/, "").replace(/"$/, "").replace(/\s{2,}/g, " ").trim();
-            var otherShortName = $(this).find("td:nth-child(4)").text().replace(/^"/, "").replace(/"$/, "").replace(/\s{2,}/g, " ").trim();
-            var otherCode = $(this).find("td:nth-child(5)").text().replace(/^"/, "").replace(/"$/, "").replace(/\s{2,}/g, " ").trim();
-
-            if (type !== "organisationUnits" && name && name === otherName) {
-                conflicts["name"] = conflicts["name"] || [];
-                conflicts["name"].push({ property: "Name", conflictingObjectId: $(this).data("id") });
-            }
-            if (type !== "organisationUnits" && shortName && shortName === otherShortName) {
-                conflicts["shortName"] = conflicts["shortName"] || [];
-                conflicts["shortName"].push({ property: "Short Name", conflictingObjectId: $(this).data("id") });
-            }
-            if (code && code === otherCode) {
-                conflicts["code"] = conflicts["code"] || [];
-                conflicts["code"].push({ property: "Code", conflictingObjectId: $(this).data("id") });
-            }
+            var otherFieldValues = getFieldValuesFromRow($(this));
+            Object.keys(fieldValues).forEach(function(field) {
+                if (fieldValues[field] && otherFieldValues[field] && fieldValues[field] === otherFieldValues[field]) {
+                    if (type !== "organisationUnits" || field === "code") {
+                        conflicts[field] = conflicts[field] || [];
+                        conflicts[field].push({ 
+                            property: field.charAt(0).toUpperCase() + field.slice(1), 
+                            conflictingObjectId: $(this).data("id") 
+                        });
+                    }
+                }
+            });
         }
     });
 
@@ -541,6 +602,18 @@ function fixAll(type) {
     });
 }
 
+function updateRowDisplay(row, objectData) {
+    var name = objectData.name ? quoteString(highlightSpaces(objectData.name)) : "";
+    var shortName = objectData.shortName ? quoteString(highlightSpaces(objectData.shortName)) : "";
+    var code = objectData.code ? quoteString(highlightSpaces(objectData.code)) : "";
+    var description = objectData.description ? quoteString(highlightSpaces(objectData.description)) : "";
+
+    row.find("td:nth-child(3)").html(name);
+    row.find("td:nth-child(4)").html(shortName);
+    row.find("td:nth-child(5)").html(code);
+    row.find("td:nth-child(6)").html(description);
+}
+
 
 // Check remaining rows and update UI
 function checkRemainingRows(type) {
@@ -564,24 +637,57 @@ function checkRemainingRows(type) {
     }
 }
 
-
 // Fix metadata object summary
 async function fixObjectSummary(type, id) {
     var row = $(`tr[data-id='${id}']`);
-    var  objectData;
+    var objectData;
     try {
-        // Find object by id from mergedData
         objectData = mergedData[type].find(item => item.id === id);
 
         const operations = [];
-        if (needsCleaning(objectData.shortName)) operations.push({ op: "add", path: "/shortName", value: cleanString(objectData.shortName) });
-        if (needsCleaning(objectData.code)) operations.push({ op: "add", path: "/code", value: cleanString(objectData.code) });
-        if (needsCleaning(objectData.name)) operations.push({ op: "add", path: "/name", value: cleanString(objectData.name) });
-        if (needsCleaning(objectData.description)) operations.push({ op: "add", path: "/description", value: cleanString(objectData.description) });
+        
+        if (selectedFields.name && needsCleaning(objectData.name)) {
+            operations.push({ op: "add", path: "/name", value: cleanString(objectData.name) });
+        }
+        if (selectedFields.shortName && needsCleaning(objectData.shortName)) {
+            operations.push({ op: "add", path: "/shortName", value: cleanString(objectData.shortName) });
+        }
+        if (selectedFields.code && needsCleaning(objectData.code)) {
+            operations.push({ op: "add", path: "/code", value: cleanString(objectData.code) });
+        }
+        if (selectedFields.description && needsCleaning(objectData.description)) {
+            operations.push({ op: "add", path: "/description", value: cleanString(objectData.description) });
+        }
 
-        await d2Patch(`/api/${type}/${id}`, operations);
+        if (operations.length > 0) {
+            await d2Patch(`/api/${type}/${id}`, operations);
+        }
 
-        row.remove();
+        if (selectedFields.name && objectData.name) {
+            objectData.name = cleanString(objectData.name);
+        }
+        if (selectedFields.shortName && objectData.shortName) {
+            objectData.shortName = cleanString(objectData.shortName);
+        }
+        if (selectedFields.code && objectData.code) {
+            objectData.code = cleanString(objectData.code);
+        }
+        if (selectedFields.description && objectData.description) {
+            objectData.description = cleanString(objectData.description);
+        }
+
+        var hasWhitespaceIssues = needsCleaning(objectData.name) || 
+                                 needsCleaning(objectData.shortName) || 
+                                 needsCleaning(objectData.code) || 
+                                 needsCleaning(objectData.description);
+
+        if (!hasWhitespaceIssues) {
+            row.remove();
+        } else {
+            updateRowDisplay(row, objectData);
+            row.find(".status-cell").text("Partially Fixed").addClass("status-ready").removeClass("status-conflict status-error");
+        }
+
         return true;
 
     } catch (err) {
@@ -602,7 +708,6 @@ function cleanString(str) {
     // Replace multiple spaces with a single space and trim leading/trailing spaces
     return str.replace(/\s\s+/g, " ").trim();
 }
-
 
 // Function to check if a string needs cleaning: has leading/trailing spaces or multiple consecutive spaces
 function needsCleaning(str) {
@@ -654,3 +759,4 @@ window.updateFixButton = updateFixButton;
 window.checkAll = checkAll;
 window.fixAll = fixAll;
 window.selectAll = selectAll;
+window.updateFieldSelection = updateFieldSelection;
