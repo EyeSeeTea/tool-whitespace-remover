@@ -88,6 +88,13 @@ function updateFieldSelection() {
     M.toast({html: "Field selection updated", classes: "blue"});
 }
 
+function isAnyFieldSelected() {
+    return selectedFields.name || selectedFields.shortName || selectedFields.code || selectedFields.description;
+}
+
+function showNoFieldSelectedToast() {
+    M.toast({html: "Please select at least one field to process", classes: "orange"});
+}
 
 // Fetch and render metadata
 async function fetchAndRenderMetadata() {
@@ -247,6 +254,11 @@ function getFieldValuesFromRow(row) {
 
 // Check for conflicts in metadata
 async function checkConflicts(type, id) {
+    if (!isAnyFieldSelected()) {
+        showNoFieldSelectedToast();
+        return;
+    }
+    
     var row = $(`tr[data-id='${id}']`);
     var endpoint = type;
     var conflictsSummary = [];
@@ -297,6 +309,11 @@ async function checkConflicts(type, id) {
 
 // Fix metadata object
 async function fixObject(type, id) {
+    if (!isAnyFieldSelected()) {
+        showNoFieldSelectedToast();
+        return;
+    }
+    
     var row = $(`tr[data-id='${id}']`);
     var importErrors = [];
     var objectData;
@@ -436,6 +453,11 @@ function showImportResultsModal(importResults, importErrors = []) {
 
 // Check all selected rows for conflicts
 function checkAll(type) {
+    if (!isAnyFieldSelected()) {
+        showNoFieldSelectedToast();
+        return;
+    }
+    
     var $selectedRows = $(`#${type}-body tr`).filter(function () {
         return $(this).find(".row-checkbox").is(":checked");
     });
@@ -575,6 +597,11 @@ function updateFixAllButton(type) {
 
 // Fix all selected rows
 function fixAll(type) {
+    if (!isAnyFieldSelected()) {
+        showNoFieldSelectedToast();
+        return;
+    }
+    
     var $rows = $(`#${type}-body tr:has(.row-checkbox:checked)`);
     var totalFixed = 0;
     var totalFailed = 0;
