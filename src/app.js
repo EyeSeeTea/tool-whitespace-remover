@@ -15,7 +15,10 @@ let mergedData = {};
 // Function to highlight leading, trailing, and double spaces
 function highlightSpaces(string) {
     if (string) {
-        return string.replace(/(^\s+)|(\s+$)|(\s{2,})/g, "<span class=\"whitespace-highlight\">$&</span>");
+        return string.replace(/(^\s+)|(\s+$)|(\s{2,})/g, function(match) {
+            const highlightedSpaces = match.replace(/ /g, "&nbsp;");
+            return `<span class="whitespace-highlight">${highlightedSpaces}</span>`;
+        });
     }
     return string;
 }
