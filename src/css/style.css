@@ -42,10 +42,19 @@ td .btn-small {
     display: block;
 }
 
+.tabs {
+    height: fit-content;
+}
 /* Increase the height of the tabs */
 .tabs .tab {
-    height: 50px; /* Adjust the height as needed */
-}
+    height: 50px;
+    }
+    
+    .tabs .tab a {
+        font-size: large;
+        font-weight: bold;
+        color: #2c6693;
+    }
 
 /* Modal rules - already handled by Materialize (if further customization needed) */
 .modal.open {

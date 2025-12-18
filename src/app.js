@@ -7,8 +7,8 @@ import $ from "jquery";
 import M from "materialize-css";
 
 //CSS
-import "./css/style.css";
 import "materialize-css/dist/css/materialize.min.css";
+import "./css/style.css";
 
 let mergedData = {};
 let selectedFields = {
