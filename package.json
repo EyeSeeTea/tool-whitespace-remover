@@ -1,7 +1,7 @@
 {
   "name": "tool-whitespace-cleaner",
   "description": "Tool for identifying and removing leading, trailing and double whitespace in metadata",
-  "version": "0.2.0",
+  "version": "0.2.0-eyeseetea-fork-1",
   "dependencies": {
     "jquery": "^3.7.1",
     "materialize-css": "^1.0.0-rc.2"
