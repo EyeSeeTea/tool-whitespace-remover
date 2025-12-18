@@ -18,10 +18,18 @@ let selectedFields = {
     description: true
 };
 
+function escapeHtml(text) {
+    if (!text) return text;
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Function to highlight leading, trailing, and double spaces
 function highlightSpaces(string) {
     if (string) {
-        return string.replace(/(^\s+)|(\s+$)|(\s{2,})/g, function(match) {
+        const escaped = escapeHtml(string);
+        return escaped.replace(/(^\s+)|(\s+$)|(\s{2,})/g, function(match) {
             const highlightedSpaces = match.replace(/ /g, "&nbsp;");
             return `<span class="whitespace-highlight">${highlightedSpaces}</span>`;
         });
@@ -215,6 +223,7 @@ function renderTables(data) {
 
 // Create tabs for different metadata types
 function createTabs(types) {
+    $(".tabs").remove();
     var $tabs = $("<ul class=\"tabs\">");
     types.forEach(function (type) {
         var $tab = $(`<li class="tab col s3"><a href="#${type}-container">${type.charAt(0).toUpperCase() + type.slice(1)}</a></li>`);
